@@ -24,25 +24,20 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 - _Cómo influyó:_ Claude corrigió el plan donde las versiones actuales de las librerías no coincidían con lo previsto (por ejemplo, TypeScript 6 en lugar de 7, porque ESLint todavía no lo soporta) y me mostró qué extras cubría.
 - _Qué decidí:_ el código solo lleva comentarios que explican el porqué de una decisión, no qué hace cada línea.
 
-**3. "Fijate en el repo de gestor estratégico de tareas si tiene la leyenda Co-Authored-By, ajustá el plan y comenzá el desarrollo."**
-
-- _Cómo influyó:_ Claude revisó los commits de mi proyecto anterior y siguió el mismo formato en este.
-- _Qué decidí:_ mantener la misma convención de commits que en el proyecto que ya me aprobaron.
-
-**4. "Primero quiero que pruebes todo el flujo, veamos los desvíos y recién después subir."**
+**3. "Primero quiero que pruebes todo el flujo, veamos los desvíos y recién después subir."**
 
 - _Cómo influyó:_ Claude probó el server como lo haría alguien que recién clona el repositorio y encontró desvíos que los tests no mostraban. El más importante: si el agente mandaba un parámetro que el tool no admite (por ejemplo, etiquetas al crear un issue), el server lo ignoraba sin avisar y el agente podía confirmar algo que no se había hecho.
 - _Qué decidí:_ corregir ese caso para que se rechace con un mensaje claro, y agregar a `list_issues` el filtro por estado para poder consultar los issues cerrados.
 
-**5. "¿Es un requerimiento o una sugerencia del proyecto usar Antigravity? Chequeá bien la documentación."**
+**4. "Dame el paso a paso para probar yo los tools en Antigravity."**
 
-- _Cómo influyó:_ Antigravity devolvía error con todos los modelos y Claude me propuso probar el server en otro host mientras tanto. Me citó las partes de la consigna y la rúbrica que piden Antigravity como host y la demo en vivo en Antigravity.
-- _Qué decidí:_ no usar otro host y resolver el problema de Antigravity. Al actualizarlo a la última versión, volvió a funcionar.
+- _Cómo influyó:_ Claude armó una lista de pedidos en lenguaje natural que no nombran el tool, para comprobar que el agente elige el correcto por su cuenta. Yo los ejecuté uno por uno en Antigravity, aprobé cada tool y le pasé las respuestas; Claude revisó en el historial de Antigravity qué tool había usado el agente en cada paso.
+- _Qué decidí:_ probar los 10 tools y también un caso de error: al pedir un repositorio llamado "mi repo", el server lo rechazó y el agente me propuso "mi-repo". No acepté crearlo, para no dejar repositorios de prueba en mi cuenta.
 
-**6. "Quiero que audites todo el proyecto para saber si cumple 1:1 con la documentación y la rúbrica, cada punto, y en el README quiero que me digas qué información contendrá. Fijate el formato del gestor de tareas, que me lo aprobaron con felicitaciones."**
+**5. "Quiero que audites todo el proyecto para saber si cumple 1:1 con la documentación y la rúbrica, cada punto."**
 
-- _Cómo influyó:_ Claude revisó cada requisito con su evidencia, marcó lo pendiente (repositorio público, slides y grabación de la demo) y me propuso la estructura del README tomando la de mi proyecto anterior.
-- _Qué decidí:_ aprobar esa estructura y corregir los detalles que encontró, como el diagrama con la cadena exacta que pide la consigna.
+- _Cómo influyó:_ Claude revisó cada requisito con su evidencia y marcó lo pendiente: repositorio público, slides y grabación de la demo.
+- _Qué decidí:_ corregir los detalles que encontró, como el diagrama con la cadena exacta que pide la consigna.
 
 ## Decisiones que tomé
 
@@ -83,7 +78,7 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 - Instalé Antigravity, creé el token y lo cargué directamente en el `.env`, sin pegarlo en el chat.
 - Al principio el agente fallaba con todos los modelos. Claude leyó los logs de Antigravity y encontró que era un límite del servicio de Google, no del server; probamos con otra cuenta y volvió a funcionar después de actualizar Antigravity.
 - En la primera respuesta, el agente no usó el server: el server estaba desactivado, así que leyó el `.env` y llamó a la API por su cuenta. Regeneré el token y configuré los permisos para que no pueda volver a pasar.
-- Probé los 10 tools con pedidos en lenguaje natural, sin decirle al agente cuál usar, y Claude revisó en el historial de Antigravity que cada paso pasara por el server.
+- Probé yo los 10 tools con pedidos en lenguaje natural, sin decirle al agente cuál usar: listé mis repositorios, creé `demo-mcp`, abrí y cerré un issue, agregué archivos, creé una rama y abrí un pull request. Claude revisó en el historial de Antigravity que cada paso pasara por el server.
 
 ### Etapa 8: Presentación y defensa
 
