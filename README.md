@@ -74,9 +74,10 @@ LOG_LEVEL=info
 
 ### 4. Configurar el server en Antigravity
 
-1. En el panel del agente, abre el menú **…** y entra en **MCP Servers**.
-2. Elige **Manage MCP Servers** y luego **View raw config**.
-3. Agrega el server a `mcp_config.json`, con la ruta absoluta a `dist/server.js`:
+Antigravity IDE lee los servers MCP de `~/.gemini/config/mcp_config.json` (en Windows, `C:\Users\<usuario>\.gemini\config\mcp_config.json`). También se llega a ese archivo desde el panel del agente, con **…** > **MCP Servers** > **Manage MCP Servers** > **View raw config**; la ubicación del menú puede cambiar entre versiones.
+
+1. Abre `mcp_config.json`, o créalo si no existe.
+2. Agrega el server con la ruta absoluta a `dist/server.js`:
 
 ```json
 {
@@ -89,13 +90,26 @@ LOG_LEVEL=info
 }
 ```
 
-4. Guarda el archivo y actualiza la lista de servers. Deben aparecer los 10 tools.
+3. Guarda el archivo y reinicia Antigravity. Deben aparecer los 10 tools.
+
+Si el server figura con `"disabled": true`, está desactivado: quita esa línea o actívalo desde el panel de MCP Servers.
 
 El server encuentra su `.env` por su propia ubicación, sin importar desde qué carpeta lo lance Antigravity. Si prefieres no usar `.env`, agrega el token en la configuración; esa variable tiene prioridad:
 
 ```json
 "env": { "GITHUB_TOKEN": "tu_token" }
 ```
+
+#### Proteger el token del agente
+
+El agente de Antigravity puede leer archivos y ejecutar comandos en el proyecto. Sin restricciones, ante un pedido sobre GitHub puede leer `.env` y llamar a la API por su cuenta, en lugar de usar los tools: el token terminaría en el contexto del modelo. Para evitarlo, en **Settings** > **General** > **Tool Permissions**:
+
+| Sección | Regla |
+|---|---|
+| **File Access Rules** | `Deny` de lectura y escritura sobre la ruta absoluta de `.env` |
+| **Terminal Commands** | `Deny` para `node`, `gh`, `curl`, `Get-Content`, `type` y `cat` |
+
+Estas reglas no afectan al server: Antigravity lo inicia desde `mcp_config.json`, no desde la terminal del agente.
 
 ### 5. Verificar la instalación
 
@@ -368,7 +382,9 @@ npm run inspect
 | `GitHub rechazó las credenciales` | Token inválido o vencido | Genera uno nuevo y actualiza `.env` |
 | `El token no tiene permisos` | Faltan scopes o acceso a la organización | Ejecuta `health_check` y revisa `missingScopes` |
 | Un repo privado da "no fue encontrado" | GitHub responde 404 si el token no tiene acceso | Verifica el dueño, el nombre y el scope `repo` |
-| Antigravity no muestra los tools | Ruta incorrecta o falta compilar | Usa una ruta absoluta a `dist/server.js` y ejecuta `npm run build` |
+| Antigravity no muestra los tools | Ruta incorrecta, falta compilar o el server está desactivado | Usa una ruta absoluta a `dist/server.js`, ejecuta `npm run build` y revisa que no tenga `"disabled": true` |
+| El agente responde "Agent execution terminated due to error" | Antigravity no pudo acceder al modelo (`429 RESOURCE_EXHAUSTED`), no es un error del server | Actualiza Antigravity, cambia de modelo o reintenta más tarde |
+| El agente usa la terminal en lugar de los tools | Puede resolver el pedido por su cuenta | Aplica las reglas de [Proteger el token del agente](#proteger-el-token-del-agente) |
 | Los cambios de código no se reflejan | Antigravity usa `dist/` | Ejecuta `npm run build` y actualiza los servers |
 | `list_issues` no muestra un cambio reciente | El listado de GitHub puede demorar unos segundos | Espera un momento y vuelve a consultar |
 | `create_branch` indica que el repo está vacío | No hay commits de los que partir | Crea uno con `create_commit` |
