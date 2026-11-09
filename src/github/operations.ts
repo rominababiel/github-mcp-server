@@ -158,9 +158,9 @@ export async function createIssue(input: CreateIssueInput): Promise<IssueSummary
 }
 
 export async function listIssues(input: ListIssuesInput): Promise<IssueSummary[]> {
-  const { owner, repo, limit } = input;
+  const { owner, repo, state, limit } = input;
   const { data } = await callGitHub(
-    (client) => client.rest.issues.listForRepo({ owner, repo, state: "open", per_page: GITHUB_MAX_PAGE_SIZE }),
+    (client) => client.rest.issues.listForRepo({ owner, repo, state, per_page: GITHUB_MAX_PAGE_SIZE }),
     { idempotent: true, repository: `${owner}/${repo}` },
   );
   // La API de GitHub devuelve los pull requests mezclados con los issues.

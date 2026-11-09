@@ -25,9 +25,11 @@ interface ToolDefinition<Schema extends z.ZodType, Output> {
 }
 
 function toInputSchema(schema: z.ZodType): Tool["inputSchema"] {
-  // io "input" evita marcar como requeridos los campos con default; $schema se quita porque algunos hosts lo rechazan.
+  // io "input" evita marcar como requeridos los campos con default. $schema y additionalProperties se quitan porque
+  // algunos modelos los rechazan en la declaración de funciones; los parámetros desconocidos se rechazan al validar.
   const jsonSchema = z.toJSONSchema(schema, { io: "input" });
   delete jsonSchema.$schema;
+  delete jsonSchema.additionalProperties;
   return { ...jsonSchema, type: "object" };
 }
 

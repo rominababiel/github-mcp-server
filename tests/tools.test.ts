@@ -5,6 +5,7 @@ import {
   createCommitSchema,
   createIssueSchema,
   createRepositorySchema,
+  healthCheckSchema,
   listIssuesSchema,
   listRepositoriesSchema,
 } from "../src/schemas/index.js";
@@ -105,6 +106,36 @@ describe("createBranchSchema", () => {
       expect(createBranchSchema.safeParse({ ...repository, branch }).success).toBe(false);
     },
   );
+});
+
+describe("parámetros desconocidos", () => {
+  it("rechaza un parámetro que el tool no admite e indica los aceptados", () => {
+    const result = createIssueSchema.safeParse({ ...repository, title: "Bug", labels: ["bug"] });
+
+    expect(firstMessage(result)).toBe("Parámetros desconocidos: labels. Los aceptados son: owner, repo, title, body.");
+  });
+
+  it("indica que health_check no recibe parámetros", () => {
+    expect(firstMessage(healthCheckSchema.safeParse({ verbose: true }))).toBe(
+      "Parámetros desconocidos: verbose. Este tool no recibe parámetros.",
+    );
+  });
+});
+
+describe("listIssuesSchema", () => {
+  it("trae los issues abiertos por defecto", () => {
+    expect(listIssuesSchema.parse(repository).state).toBe("open");
+  });
+
+  it.each(["open", "closed", "all"])("acepta el estado %s", (state) => {
+    expect(listIssuesSchema.safeParse({ ...repository, state }).success).toBe(true);
+  });
+
+  it("rechaza un estado que GitHub no reconoce", () => {
+    expect(firstMessage(listIssuesSchema.safeParse({ ...repository, state: "todos" }))).toBe(
+      "El estado debe ser open, closed o all.",
+    );
+  });
 });
 
 describe("límites y números", () => {

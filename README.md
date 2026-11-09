@@ -153,15 +153,16 @@ Abre un issue en un repositorio.
 
 #### `list_issues`
 
-Lista los issues abiertos de un repositorio, sin incluir pull requests.
+Lista los issues de un repositorio, sin incluir pull requests.
 
 | Parámetro | Tipo | Detalle |
 |---|---|---|
 | `owner` | `string` | Usuario u organización dueña |
 | `repo` | `string` | Nombre del repositorio |
+| `state` | `"open" \| "closed" \| "all"` | Por defecto `open` |
 | `limit` | `number` | 1 a 100. Por defecto 30 |
 
-> **Prompt:** ¿Qué issues abiertos tiene `octocat/api-pagos`?
+> **Prompt:** ¿Qué issues abiertos tiene `octocat/api-pagos`? ¿Y cuáles se cerraron?
 
 #### `create_commit`
 
@@ -313,7 +314,7 @@ Las dependencias van en una sola dirección: `tools → schemas / operations →
 
 | Tipo | Cuándo ocurre | Ejemplo de mensaje |
 |---|---|---|
-| `ValidationError` | Input inválido, antes de llamar a GitHub | `Parámetros inválidos. name: El nombre del repositorio solo admite letras, números y guiones.` |
+| `ValidationError` | Input inválido o con parámetros que el tool no admite, antes de llamar a GitHub | `Parámetros inválidos. name: El nombre del repositorio solo admite letras, números y guiones.` |
 | `AuthenticationError` | Token ausente o inválido (401), falta de permisos (403) | `GitHub rechazó las credenciales. Verifica que GITHUB_TOKEN sea válido y no haya vencido.` |
 | `GitHubAPIError` | 404, 409, 422, 5xx y rate limit | `El repositorio octocat/demo no fue encontrado. Verifica el nombre e intenta de nuevo.` |
 | `NetworkError` | No se pudo conectar con GitHub | `No se pudo conectar con GitHub. Verifica tu conexión a internet e intenta de nuevo.` |

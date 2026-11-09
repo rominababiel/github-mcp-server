@@ -7,7 +7,7 @@ import { httpError } from "./helpers.js";
 
 const octokit = vi.hoisted(() => ({
   rest: {
-    issues: { listForRepo: vi.fn() },
+    issues: { listForRepo: vi.fn(), create: vi.fn() },
     repos: { createForAuthenticatedUser: vi.fn() },
   },
 }));
@@ -52,7 +52,21 @@ describe("servidor MCP", () => {
       expect(tool.description?.length).toBeGreaterThan(40);
       expect(tool.inputSchema.type).toBe("object");
       expect(tool.inputSchema).not.toHaveProperty("$schema");
+      expect(tool.inputSchema).not.toHaveProperty("additionalProperties");
     }
+  });
+
+  it("no ejecuta la operación si recibe un parámetro que el tool no admite", async () => {
+    const client = await connectClient();
+
+    const result = await client.callTool({
+      name: "create_issue",
+      arguments: { owner: "octocat", repo: "demo", title: "Bug", labels: ["bug"] },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain("Parámetros desconocidos: labels.");
+    expect(octokit.rest.issues.create).not.toHaveBeenCalled();
   });
 
   it("comunica al LLM qué parámetros son obligatorios y cuáles tienen default", async () => {

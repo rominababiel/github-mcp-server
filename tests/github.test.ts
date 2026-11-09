@@ -165,10 +165,19 @@ describe("listIssues", () => {
       ],
     });
 
-    const result = await listIssues({ ...reference, limit: 1 });
+    const result = await listIssues({ ...reference, state: "open", limit: 1 });
 
     expect(octokit.rest.issues.listForRepo).toHaveBeenCalledWith(expect.objectContaining({ state: "open" }));
     expect(result.map((issue) => issue.number)).toEqual([2]);
+  });
+
+  it("consulta el estado pedido", async () => {
+    octokit.rest.issues.listForRepo.mockResolvedValue({ data: [{ ...issueData, state: "closed" }] });
+
+    const result = await listIssues({ ...reference, state: "closed", limit: 30 });
+
+    expect(octokit.rest.issues.listForRepo).toHaveBeenCalledWith(expect.objectContaining({ state: "closed" }));
+    expect(result[0]?.state).toBe("closed");
   });
 });
 

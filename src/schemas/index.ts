@@ -2,6 +2,15 @@ import { z } from "zod";
 
 const CONTROL_CHARACTER = /\p{Cc}/u;
 
+function toolInput<Shape extends z.ZodRawShape>(shape: Shape) {
+  const accepted = Object.keys(shape);
+  const acceptedText = accepted.length > 0 ? `Los aceptados son: ${accepted.join(", ")}.` : "Este tool no recibe parámetros.";
+  return z.strictObject(shape, {
+    error: (issue) =>
+      issue.code === "unrecognized_keys" ? `Parámetros desconocidos: ${issue.keys.join(", ")}. ${acceptedText}` : undefined,
+  });
+}
+
 function requiredText(label: string) {
   return z.string({ error: `${label} es obligatorio y debe ser texto.` }).trim();
 }
@@ -55,7 +64,7 @@ const repositoryReference = {
   repo: existingRepositoryNameSchema,
 };
 
-export const createRepositorySchema = z.object({
+export const createRepositorySchema = toolInput({
   name: newRepositoryNameSchema,
   description: z
     .string({ error: "La descripción debe ser texto." })
@@ -74,7 +83,7 @@ export const createRepositorySchema = z.object({
     .describe("Organización donde crearlo. Omitir para crearlo en la cuenta personal."),
 });
 
-export const listRepositoriesSchema = z.object({
+export const listRepositoriesSchema = toolInput({
   visibility: z
     .enum(["all", "public", "private"], { error: "La visibilidad debe ser all, public o private." })
     .default("all")
@@ -82,7 +91,7 @@ export const listRepositoriesSchema = z.object({
   limit: limitSchema,
 });
 
-export const createIssueSchema = z.object({
+export const createIssueSchema = toolInput({
   ...repositoryReference,
   title: requiredText("El título del issue")
     .min(1, "El título del issue no puede estar vacío.")
@@ -95,12 +104,16 @@ export const createIssueSchema = z.object({
     .describe("Detalle del issue en Markdown."),
 });
 
-export const listIssuesSchema = z.object({
+export const listIssuesSchema = toolInput({
   ...repositoryReference,
+  state: z
+    .enum(["open", "closed", "all"], { error: "El estado debe ser open, closed o all." })
+    .default("open")
+    .describe("Estado de los issues: open para los abiertos, closed para los cerrados, all para todos."),
   limit: limitSchema,
 });
 
-export const createCommitSchema = z.object({
+export const createCommitSchema = toolInput({
   ...repositoryReference,
   path: requiredText("La ruta del archivo")
     .min(1, "La ruta del archivo no puede estar vacía.")
@@ -123,13 +136,13 @@ export const createCommitSchema = z.object({
   branch: branchNameSchema.optional().describe("Rama existente donde commitear. Omitir para usar la rama por defecto."),
 });
 
-export const createBranchSchema = z.object({
+export const createBranchSchema = toolInput({
   ...repositoryReference,
   branch: branchNameSchema.describe("Nombre de la rama nueva. Ejemplo: feat/login."),
   fromBranch: branchNameSchema.optional().describe("Rama de origen. Omitir para partir de la rama por defecto."),
 });
 
-export const createPullRequestSchema = z.object({
+export const createPullRequestSchema = toolInput({
   ...repositoryReference,
   title: requiredText("El título del pull request")
     .min(1, "El título del pull request no puede estar vacío.")
@@ -144,13 +157,13 @@ export const createPullRequestSchema = z.object({
     .describe("Descripción del pull request en Markdown."),
 });
 
-export const listCommitsSchema = z.object({
+export const listCommitsSchema = toolInput({
   ...repositoryReference,
   branch: branchNameSchema.optional().describe("Rama a consultar. Omitir para usar la rama por defecto."),
   limit: limitSchema,
 });
 
-export const closeIssueSchema = z.object({
+export const closeIssueSchema = toolInput({
   ...repositoryReference,
   issueNumber: issueNumberSchema,
   reason: z
@@ -159,7 +172,7 @@ export const closeIssueSchema = z.object({
     .describe("Motivo del cierre: completed si se resolvió, not_planned si se descartó."),
 });
 
-export const healthCheckSchema = z.object({});
+export const healthCheckSchema = toolInput({});
 
 export type CreateRepositoryInput = z.output<typeof createRepositorySchema>;
 export type ListRepositoriesInput = z.output<typeof listRepositoriesSchema>;
