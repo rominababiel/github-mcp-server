@@ -8,13 +8,41 @@ Servidor [Model Context Protocol](https://modelcontextprotocol.io) en Node.js y 
 
 A partir de ese pedido, el agente elige los tools `create_branch`, `create_commit` y `create_pull_request`, los ejecuta en orden y devuelve el enlace al pull request.
 
-## Por qué es útil
+## Objetivo del proyecto
 
-- **Tareas repetitivas sin cambiar de contexto:** crear issues, ramas o pull requests desde el chat del IDE.
-- **Triage conversacional:** "¿qué issues abiertos tiene el repo api?" y cerrar los que ya están resueltos.
-- **Arranque de proyectos:** crear un repositorio y su primera documentación con un solo pedido.
-- **Seguimiento rápido:** "¿qué cambió esta semana en main?".
-- **Diagnóstico guiado:** los errores llegan en lenguaje natural, por lo que el agente puede explicar qué pasó y cómo seguir.
+**GitHub MCP Server** es el MVP que AutomateHub, una startup de herramientas de automatización para equipos de desarrollo, construye para explorar el ecosistema de AI Agents y MCP.
+
+### Problemática
+
+Los equipos de desarrollo repiten muchas veces por día las mismas tareas en GitHub: crear repositorios, abrir y cerrar issues, crear ramas, subir un archivo, abrir un pull request. Cada una obliga a salir del editor, entrar a la web o recordar comandos. Un asistente de IA que solo conversa puede explicar cómo hacerlo, pero no lo hace.
+
+### Solución
+
+Un server MCP que expone operaciones de GitHub como tools. El LLM lee la descripción y el schema de cada tool, decide cuál usar a partir de un pedido en lenguaje natural y el server lo ejecuta con Octokit. Antes de llamar a GitHub, cada input se valida con Zod, y cualquier error vuelve como un mensaje que el agente puede explicar al usuario.
+
+### Casos de uso principales
+
+1. **Arrancar un proyecto:** crear un repositorio y su primera documentación con un solo pedido.
+2. **Registrar trabajo sin cambiar de contexto:** abrir un issue desde el chat del IDE mientras se programa.
+3. **Triage conversacional:** "¿qué issues abiertos tiene el repo api?" y cerrar los que ya están resueltos.
+4. **Proponer cambios:** crear una rama, commitear un archivo y abrir el pull request.
+5. **Seguimiento rápido:** consultar los últimos commits de una rama.
+6. **Diagnóstico guiado:** los errores llegan en lenguaje natural, por lo que el agente puede explicar qué pasó y cómo seguir.
+
+### Alcance
+
+- **Incluye:** 10 tools (los 5 obligatorios, 4 avanzados y `health_check`), validación de inputs con Zod, errores clasificados y traducidos, reintentos ante rate limit, logs sin datos sensibles, repositorios en organizaciones y 115 tests.
+- **No incluye:** borrado de repositorios, labels, colaboradores, comentarios en issues, caché de resultados ni varias cuentas de GitHub a la vez. Cada commit agrega o reemplaza un único archivo de texto.
+
+## Stack
+
+- Node.js + TypeScript
+- `@modelcontextprotocol/sdk`, el SDK oficial de MCP, con transporte stdio
+- `@octokit/rest`, el cliente oficial de la API de GitHub
+- Zod para validación de schemas e inferencia de tipos
+- Vitest para los tests, con Octokit mockeado
+- ESLint con `typescript-eslint`
+- MCP Inspector para depurar y Antigravity como host
 
 ## Requisitos
 
@@ -22,7 +50,7 @@ A partir de ese pedido, el agente elige los tools `create_branch`, `create_commi
 |---|---|
 | Node.js | 22.12 o superior |
 | npm | Incluido con Node.js |
-| Antigravity | Con sesión iniciada y un modelo disponible |
+| Antigravity IDE | Con sesión iniciada y un modelo disponible |
 | GitHub | Cuenta con un Personal Access Token |
 
 > La consigna parte de Node 18, pero las versiones actuales de las dependencias exigen más: `@octokit/rest` necesita Node 20 y Vitest, Node 22.12.
@@ -42,7 +70,7 @@ npm run build
 
 ### 1. Obtener un GitHub Personal Access Token
 
-1. Abre [github.com/settings/tokens/new](https://github.com/settings/tokens/new) para crear un token **classic**.
+1. Abre [github.com/settings/tokens/new](https://github.com/settings/tokens/new) para crear un token **classic**. Los tokens fine-grained no usan scopes, y este server necesita los de la tabla siguiente.
 2. Escribe un nombre, como `github-mcp-server`, y elige una fecha de vencimiento.
 3. Selecciona los scopes de la tabla siguiente.
 4. Haz clic en **Generate token** y copia el valor. GitHub no lo vuelve a mostrar.
@@ -100,7 +128,7 @@ El server encuentra su `.env` por su propia ubicación, sin importar desde qué 
 "env": { "GITHUB_TOKEN": "tu_token" }
 ```
 
-#### Proteger el token del agente
+### 5. Proteger el token del agente
 
 El agente de Antigravity puede leer archivos y ejecutar comandos en el proyecto. Sin restricciones, ante un pedido sobre GitHub puede leer `.env` y llamar a la API por su cuenta, en lugar de usar los tools: el token terminaría en el contexto del modelo. Para evitarlo, en **Settings** > **General** > **Tool Permissions**:
 
@@ -111,7 +139,7 @@ El agente de Antigravity puede leer archivos y ejecutar comandos en el proyecto.
 
 Estas reglas no afectan al server: Antigravity lo inicia desde `mcp_config.json`, no desde la terminal del agente.
 
-### 5. Verificar la instalación
+### 6. Verificar la instalación
 
 Pídele al agente:
 
@@ -119,11 +147,20 @@ Pídele al agente:
 Verifica la conexión con GitHub.
 ```
 
-`health_check` debe responder con tu usuario, los scopes del token y el rate limit disponible.
+El agente debe usar `github/health_check` y responder con tu usuario, los scopes del token y el rate limit disponible.
+
+## Variables de entorno
+
+Se definen en `.env` (ver `.env.example`) o en el bloque `env` de `mcp_config.json`, que tiene prioridad.
+
+| Variable | Obligatoria | Descripción |
+|---|---|---|
+| `GITHUB_TOKEN` | Sí | Personal Access Token classic con los scopes `repo`, `user` y `admin:org` |
+| `LOG_LEVEL` | No | Nivel de los logs en stderr: `debug`, `info`, `warn`, `error` o `silent`. Por defecto `info` |
 
 ## Tools
 
-Los campos con valor por defecto o marcados como opcionales pueden omitirse.
+Los campos con valor por defecto o marcados como opcionales pueden omitirse. Si el agente envía un parámetro que el tool no admite, la validación lo rechaza e indica cuáles acepta.
 
 ### Tools principales
 
@@ -257,17 +294,25 @@ Verifica la conexión e informa el usuario, los scopes concedidos y faltantes, y
 
 ## Ejemplos de uso
 
-Cada flujo combina tools, y juntos cubren los 10:
+Cada flujo combina tools, y juntos cubren los 10. Se probaron en Antigravity con Gemini 3.8 Flash; el último, contra la API real por stdio:
 
 | Pedido | Tools que usa el agente |
 |---|---|
 | "Verifica la conexión con GitHub y lista mis 5 repositorios más recientes." | `health_check`, `list_repositories` |
 | "Crea un repositorio llamado `demo-mcp`, abre un issue 'Agregar documentación' y muéstrame los issues abiertos." | `create_repository`, `create_issue`, `list_issues` |
 | "En `demo-mcp`, crea la rama `feat/docs`, agrega `docs/guia.md` con una guía breve y abre un pull request hacia `main`." | `create_branch`, `create_commit`, `create_pull_request` |
-| "Muéstrame los últimos commits de `demo-mcp` y cierra el issue de documentación." | `list_commits`, `close_issue` |
-| "Crea un repositorio llamado `a b`." | Ninguna llamada a GitHub: la validación explica el error |
+| "Muéstrame los últimos commits de `demo-mcp`, cierra el issue de documentación y lista los issues cerrados." | `list_commits`, `close_issue`, `list_issues` |
+| "Crea un repositorio llamado `a b`." | Ninguna llamada a GitHub: la validación explica el error y el agente propone `a-b` |
+| "¿Qué issues tiene el repo `no-existe-xyz`?" | `list_issues`, que responde "El repositorio … no fue encontrado. Verifica el nombre e intenta de nuevo." |
 
 ## Arquitectura
+
+```mermaid
+flowchart LR
+    H["Antigravity (Host)"] --> L["LLM (Client)"] --> S["MCP Server"] --> G["GitHub API"]
+```
+
+El recorrido completo de una solicitud, de ida y de vuelta:
 
 ```mermaid
 sequenceDiagram
@@ -293,7 +338,7 @@ sequenceDiagram
 
 Según la especificación de MCP, el cliente es un componente del host que mantiene la conexión con el server; el LLM es quien decide qué tool usar a partir de sus descripciones.
 
-### Capas
+## Estructura del proyecto
 
 ```text
 src/
@@ -308,17 +353,21 @@ src/
 │   └── operations.ts  Operaciones de GitHub
 ├── errors/            Tipos de error y traducción a lenguaje natural
 └── utils/             Logging y reintentos
+tests/                 Tests unitarios con Octokit mockeado
 ```
 
-Las dependencias van en una sola dirección: `tools → schemas / operations → client`. Las operaciones no conocen MCP y los tools no llaman a Octokit directamente.
+La estructura sigue la sugerida por la consigna y suma tres archivos: `mcp-server.ts` separa el protocolo del entry point para poder testearlo con un cliente en memoria, `config.ts` centraliza la configuración y `define-tool.ts` aplica a todos los tools la misma validación, el mismo manejo de errores y los mismos logs.
 
-### Decisiones técnicas
+## Decisiones de arquitectura
+
+- **Capas con una sola dirección de dependencia:** `tools → schemas / operations → client`. Las operaciones no conocen MCP y los tools no llaman a Octokit directamente, por eso los tests reemplazan solo el cliente.
 
 | Decisión | Motivo |
 |---|---|
 | Stdio en lugar de HTTP | Es un proceso local del usuario: no abre puertos y el token no sale de su máquina |
 | `Server` en lugar de `McpServer` | `McpServer` valida antes del handler y su error mezcla texto del SDK; así, toda validación pasa por `ValidationError` |
 | Errores como resultado con `isError: true` | El LLM los puede leer y explicar; un fallo de protocolo no le daría esa oportunidad |
+| Parámetros desconocidos rechazados | Si se ignoraran, el agente podría confirmar algo que no se hizo, como un issue "con etiqueta" |
 | Logs solo en stderr | Stdout transporta JSON-RPC y cualquier otra salida rompería la comunicación |
 | Dos reglas para nombres de repositorio | Al crear se aplica la regla de la consigna; al referenciar, la de GitHub, para no bloquear repos como `mi_repo` |
 | Reintentos según el tipo de error | El rate limit se reintenta siempre porque GitHub rechazó el pedido; los fallos de red solo en lecturas, para no duplicar escrituras |
@@ -336,6 +385,8 @@ Las dependencias van en una sola dirección: `tools → schemas / operations →
 
 **Rate limit:** se respetan `retry-after` y `x-ratelimit-reset`. Sin esos datos se aplica backoff exponencial con jitter, hasta 3 intentos. Si la espera supera los 30 segundos, no se bloquea al agente: se informa cuándo reintentar.
 
+**Sugerencias:** si falta permiso para crear un repositorio en una organización, el mensaje sugiere crearlo en la cuenta personal.
+
 **Logs:** se escriben en stderr como JSON, en los niveles `debug`, `info`, `warn` y `error`. Las claves sensibles y los valores con formato de token de GitHub se ocultan. Para más detalle, usa `LOG_LEVEL=debug` o `npm run dev`, que activa `--verbose`.
 
 ## Tests
@@ -344,13 +395,13 @@ Las dependencias van en una sola dirección: `tools → schemas / operations →
 npm test
 ```
 
-Los tests usan Octokit mockeado y timers simulados: no hacen llamadas reales y son deterministas.
+115 tests con Vitest. Octokit se reemplaza con `vi.mock()` y los timers son simulados: no hay llamadas reales a GitHub y los resultados son deterministas. Los mocks simulan tanto respuestas exitosas como errores (404, 401, 403, 422, rate limit y fallos de red).
 
 | Archivo | Qué verifica |
 |---|---|
 | `tests/tools.test.ts` | Schemas: inputs válidos, inválidos y sus mensajes |
-| `tests/github.test.ts` | Operaciones con Octokit mockeado y casos edge |
-| `tests/errors.test.ts` | Clasificación y traducción de errores |
+| `tests/github.test.ts` | Operaciones con Octokit mockeado y casos edge: repositorio inexistente, credenciales inválidas, repo vacío |
+| `tests/errors.test.ts` | Clasificación y traducción de errores a lenguaje natural |
 | `tests/retry.test.ts` | Backoff, límite de espera y reintentos seguros |
 | `tests/logging.test.ts` | Uso de stderr, niveles y ocultamiento del token |
 | `tests/server.test.ts` | Flujo MCP completo con un cliente en memoria |
@@ -363,6 +414,7 @@ Los tests usan Octokit mockeado y timers simulados: no hacen llamadas reales y s
 | `npm run dev` | Ejecuta desde el código fuente con logs detallados |
 | `npm start` | Ejecuta la versión compilada |
 | `npm test` | Ejecuta los tests |
+| `npm run test:watch` | Tests en modo watch |
 | `npm run lint` | Ejecuta ESLint |
 | `npm run typecheck` | Verifica los tipos sin compilar |
 | `npm run inspect` | Abre MCP Inspector con la versión compilada |
@@ -384,11 +436,22 @@ npm run inspect
 | Un repo privado da "no fue encontrado" | GitHub responde 404 si el token no tiene acceso | Verifica el dueño, el nombre y el scope `repo` |
 | Antigravity no muestra los tools | Ruta incorrecta, falta compilar o el server está desactivado | Usa una ruta absoluta a `dist/server.js`, ejecuta `npm run build` y revisa que no tenga `"disabled": true` |
 | El agente responde "Agent execution terminated due to error" | Antigravity no pudo acceder al modelo (`429 RESOURCE_EXHAUSTED`), no es un error del server | Actualiza Antigravity, cambia de modelo o reintenta más tarde |
-| El agente usa la terminal en lugar de los tools | Puede resolver el pedido por su cuenta | Aplica las reglas de [Proteger el token del agente](#proteger-el-token-del-agente) |
-| Los cambios de código no se reflejan | Antigravity usa `dist/` | Ejecuta `npm run build` y actualiza los servers |
+| El agente usa la terminal en lugar de los tools | Puede resolver el pedido por su cuenta | Aplica las reglas de [Proteger el token del agente](#5-proteger-el-token-del-agente) |
+| Los cambios de código no se reflejan | Antigravity usa `dist/` | Ejecuta `npm run build` y reinicia Antigravity |
 | `list_issues` no muestra un cambio reciente | El listado de GitHub puede demorar unos segundos | Espera un momento y vuelve a consultar |
 | `create_branch` indica que el repo está vacío | No hay commits de los que partir | Crea uno con `create_commit` |
 | El server se desconecta al arrancar | Salida ajena al protocolo en stdout | Usa `logger`, nunca `console.log` |
+| `npm install` avisa que no ejecutó el script de `esbuild` | npm pide aprobar los scripts de instalación de dependencias | No afecta al proyecto: `build`, `dev` y `test` funcionan igual |
+
+## Uso de IA
+
+Desarrollé el proyecto con Claude Code como asistente: Claude escribió el código y yo lo guié, decidí y probé cada etapa en Antigravity.
+
+- **Cómo lo integré:** primero leí la consigna, la guía y la rúbrica, se las pasé como contexto y le pedí un plan técnico que cubriera cada punto, separando lo que pide la documentación de lo que proponía por su cuenta. No empezó a construir hasta que aprobé el plan, y antes de subir el repositorio le pedí probar el flujo completo para encontrar desvíos.
+- **Dónde fue más efectiva:** para diagnosticar los errores de Antigravity leyendo sus logs, para encontrar comportamientos que los tests no mostraban (parámetros que se ignoraban sin aviso) y para auditar el proyecto contra la rúbrica.
+- **Buenas prácticas que descubrí:** pedir el plan antes que el código, revisar qué tool usa el agente y no solo su respuesta, restringir los permisos del agente y no pegar nunca el token en el chat.
+
+El detalle completo, con los prompts principales y las decisiones de cada etapa, está en [docs/AI_USAGE.md](docs/AI_USAGE.md).
 
 ## Licencia
 
