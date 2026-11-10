@@ -93,9 +93,22 @@ describe("createRepository", () => {
   });
 
   it("informa que el nombre ya existe", async () => {
-    octokit.rest.repos.createForAuthenticatedUser.mockRejectedValue(httpError(422));
+    octokit.rest.repos.createForAuthenticatedUser.mockRejectedValue(
+      httpError(422, { data: { errors: [{ field: "name", message: "name already exists on this account" }] } }),
+    );
 
     await expect(createRepository(input)).rejects.toThrow("Ya existe un repositorio llamado hello en tu cuenta");
+  });
+
+  it("no atribuye al nombre duplicado otro rechazo de GitHub", async () => {
+    octokit.rest.repos.createForAuthenticatedUser.mockRejectedValue(
+      httpError(422, { data: { errors: [{ message: "Visibility can't be private on this plan" }] } }),
+    );
+
+    const error = await createRepository(input).catch((caught: unknown) => caught);
+
+    expect((error as Error).message).toContain("Visibility can't be private on this plan");
+    expect((error as Error).message).not.toContain("Ya existe");
   });
 
   it("sugiere la cuenta personal si no hay permisos en la organización", async () => {
@@ -251,6 +264,14 @@ describe("createBranch", () => {
     octokit.rest.git.createRef.mockRejectedValue(httpError(422));
 
     await expect(createBranch({ ...reference, branch: "dev", fromBranch: "main" })).rejects.toThrow("ya existe");
+  });
+
+  it("menciona el repositorio y la rama de origen si no los encuentra", async () => {
+    octokit.rest.git.getRef.mockRejectedValue(httpError(404));
+
+    await expect(createBranch({ ...reference, branch: "dev", fromBranch: "release" })).rejects.toThrow(
+      "No se encontró el repositorio octocat/hello o la rama de origen release.",
+    );
   });
 });
 

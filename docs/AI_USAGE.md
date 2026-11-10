@@ -36,7 +36,7 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 
 **5. "Quiero que audites todo el proyecto para saber si cumple 1:1 con la documentación y la rúbrica, cada punto."**
 
-- _Cómo influyó:_ Claude revisó cada requisito con su evidencia y marcó lo pendiente: repositorio público, slides y grabación de la demo.
+- _Cómo influyó:_ Claude revisó cada requisito con su evidencia y marcó lo pendiente: publicar el repositorio, las slides, la grabación de la demo y la preparación de preguntas.
 - _Qué decidí:_ corregir los detalles que encontró, como el diagrama con la cadena exacta que pide la consigna.
 
 ## Decisiones que tomé
@@ -44,13 +44,13 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 | Tema | Qué elegí | Por qué |
 |---|---|---|
 | Host | Antigravity IDE, sin alternativas | La consigna y la rúbrica lo piden como host y para la demo en vivo |
-| Modelo para la demo | Gemini 3.8 Flash | Es el modelo disponible en el plan gratuito; desde el 18/11/2026 los de otros proveedores dejan de estarlo |
+| Modelo para la demo | Gemini 3.8 Flash | Es el que usé en todas las pruebas, y Antigravity avisa que en el plan gratuito los modelos de otros proveedores dejan de estar disponibles |
 | Token | Classic, con `repo`, `user` y `admin:org` | Son los scopes que pide la consigna; los tokens fine-grained no los usan |
 | Token expuesto | Regenerarlo | El agente lo leyó del `.env` en una prueba; aunque no se hizo público, salió de mi máquina |
 | Permisos del agente | Bloquear `.env` y los comandos que lo leen | Así el agente usa los tools del server y no la API por su cuenta |
 | Parámetros desconocidos | Rechazarlos | Si se ignoran, el agente puede decir que hizo algo que no hizo |
 | Filtro de issues | `state` con `open`, `closed` y `all` | Sin él, el agente no podía responder qué issues se cerraron |
-| Node.js | 22.12 o superior | Lo exigen las versiones actuales de Vitest y Octokit |
+| Node.js | 22.13 o superior en la línea 22, o 24 o superior | Lo exigen las versiones actuales de ESLint, Vitest y Octokit |
 | Extras | 4 tools avanzados, organizaciones y mejoras de experiencia | Suman sin contradecir la consigna |
 | Licencia | MIT | Es la que sugiere la consigna |
 
@@ -66,7 +66,7 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 
 ### Etapas 3 a 6: Schemas, GitHub, errores y tests
 
-- Claude implementó la validación, las operaciones, el manejo de errores y los tests, y los probó contra GitHub real con repositorios descartables.
+- Claude implementó la validación, las operaciones, el manejo de errores y los tests. Los tests usan Octokit mockeado; además, probó las operaciones contra GitHub real con repositorios descartables.
 - Borré esos repositorios de prueba desde GitHub cuando terminamos.
 
 ### Etapa 7: Documentación
@@ -78,7 +78,7 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 - Instalé Antigravity, creé el token y lo cargué directamente en el `.env`, sin pegarlo en el chat.
 - Al principio el agente fallaba con todos los modelos. Claude leyó los logs de Antigravity y encontró que era un límite del servicio de Google, no del server; probamos con otra cuenta y volvió a funcionar después de actualizar Antigravity.
 - En la primera respuesta, el agente no usó el server: el server estaba desactivado, así que leyó el `.env` y llamó a la API por su cuenta. Regeneré el token y configuré los permisos para que no pueda volver a pasar.
-- Probé yo los 10 tools con pedidos en lenguaje natural, sin decirle al agente cuál usar: listé mis repositorios, creé `demo-mcp`, abrí y cerré un issue, agregué archivos, creé una rama y abrí un pull request. Claude revisó en el historial de Antigravity que cada paso pasara por el server.
+- Probé yo los 10 tools con pedidos en lenguaje natural, sin decirle al agente cuál usar: verifiqué la conexión, listé mis repositorios, creé `demo-mcp`, abrí un issue y listé los abiertos, agregué archivos, creé una rama, abrí un pull request, consulté los últimos commits, cerré el issue y listé los cerrados. Claude revisó en el historial de Antigravity que cada paso pasara por el server.
 
 ### Etapa 8: Presentación y defensa
 

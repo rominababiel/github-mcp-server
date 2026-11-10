@@ -128,7 +128,10 @@ export async function createRepository(input: CreateRepositoryInput): Promise<Re
           403: `No tienes permisos para crear repositorios en la organización ${organization}. Puedes crearlo en tu cuenta personal omitiendo la organización.`,
           404: `La organización ${organization} no fue encontrada. Verifica el nombre o crea el repositorio en tu cuenta personal.`,
         }),
-        422: `Ya existe un repositorio llamado ${name} en ${location}. Elige otro nombre.`,
+        422: (responseData) =>
+          /already exists/i.test(JSON.stringify(responseData ?? {}))
+            ? `Ya existe un repositorio llamado ${name} en ${location}. Elige otro nombre.`
+            : undefined,
       },
     },
   );
@@ -214,7 +217,7 @@ export async function createBranch(input: CreateBranchInput): Promise<BranchResu
     {
       idempotent: true,
       messages: {
-        404: `No se encontró la rama de origen ${fromBranch} en ${owner}/${repo}. Verifica los nombres e intenta de nuevo.`,
+        404: `No se encontró el repositorio ${owner}/${repo} o la rama de origen ${fromBranch}. Verifica los nombres e intenta de nuevo.`,
         409: `El repositorio ${owner}/${repo} está vacío. Crea un primer commit antes de crear ramas.`,
       },
     },

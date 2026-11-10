@@ -31,7 +31,7 @@ Un server MCP que expone operaciones de GitHub como tools. El LLM lee la descrip
 
 ### Alcance
 
-- **Incluye:** 10 tools (los 5 obligatorios, 4 avanzados y `health_check`), validación de inputs con Zod, errores clasificados y traducidos, reintentos ante rate limit, logs sin datos sensibles, repositorios en organizaciones y 115 tests.
+- **Incluye:** 10 tools (los 5 obligatorios, 4 avanzados y `health_check`), validación de inputs con Zod, errores clasificados y traducidos, reintentos ante rate limit, logs sin datos sensibles, repositorios en organizaciones y 123 tests.
 - **No incluye:** borrado de repositorios, labels, colaboradores, comentarios en issues, caché de resultados ni varias cuentas de GitHub a la vez. Cada commit agrega o reemplaza un único archivo de texto.
 
 ## Stack
@@ -48,12 +48,12 @@ Un server MCP que expone operaciones de GitHub como tools. El LLM lee la descrip
 
 | Requisito | Versión o detalle |
 |---|---|
-| Node.js | 22.12 o superior |
+| Node.js | 22.13 o superior en la línea 22, o 24 o superior. Las versiones impares 23 y 25 no están soportadas |
 | npm | Incluido con Node.js |
 | Antigravity IDE | Con sesión iniciada y un modelo disponible |
 | GitHub | Cuenta con un Personal Access Token |
 
-> La consigna parte de Node 18, pero las versiones actuales de las dependencias exigen más: `@octokit/rest` necesita Node 20 y Vitest, Node 22.12.
+> La consigna parte de Node 18, pero las versiones actuales de las dependencias exigen más: `@octokit/rest` necesita Node 20, ESLint 10 necesita 22.13 y Vitest 5 no soporta las versiones impares.
 
 ## Instalación
 
@@ -185,7 +185,7 @@ Lista los repositorios a los que accede el usuario, por actividad reciente.
 | Parámetro | Tipo | Detalle |
 |---|---|---|
 | `visibility` | `"all" \| "public" \| "private"` | Por defecto `all` |
-| `limit` | `number` | 1 a 100. Por defecto 30 |
+| `limit` | `integer` | 1 a 100. Por defecto 30 |
 
 > **Prompt:** Muéstrame mis 5 repositorios privados más recientes.
 
@@ -211,7 +211,7 @@ Lista los issues de un repositorio, sin incluir pull requests.
 | `owner` | `string` | Usuario u organización dueña |
 | `repo` | `string` | Nombre del repositorio |
 | `state` | `"open" \| "closed" \| "all"` | Por defecto `open` |
-| `limit` | `number` | 1 a 100. Por defecto 30 |
+| `limit` | `integer` | 1 a 100. Por defecto 30 |
 
 > **Prompt:** ¿Qué issues abiertos tiene `octocat/api-pagos`? ¿Y cuáles se cerraron?
 
@@ -256,7 +256,7 @@ Abre un pull request entre dos ramas del mismo repositorio.
 | `title` | `string` | 1 a 256 caracteres |
 | `head` | `string` | Rama con los cambios |
 | `base` | `string` opcional | Si se omite, apunta a la rama por defecto |
-| `body` | `string` opcional | Descripción en Markdown |
+| `body` | `string` opcional | Descripción en Markdown, hasta 65536 caracteres |
 
 > **Prompt:** Abre un pull request de `feat/reembolsos` hacia `main` en `octocat/api-pagos`, titulado "Corregir reembolsos".
 
@@ -269,7 +269,7 @@ Lista los commits recientes de un repositorio o rama.
 | `owner` | `string` | Usuario u organización dueña |
 | `repo` | `string` | Nombre del repositorio |
 | `branch` | `string` opcional | Si se omite, usa la rama por defecto |
-| `limit` | `number` | 1 a 100. Por defecto 30 |
+| `limit` | `integer` | 1 a 100. Por defecto 30 |
 
 > **Prompt:** Muéstrame los últimos 3 commits de `octocat/api-pagos`.
 
@@ -281,7 +281,7 @@ Cierra un issue. Rechaza el pedido si el número corresponde a un pull request.
 |---|---|---|
 | `owner` | `string` | Usuario u organización dueña |
 | `repo` | `string` | Nombre del repositorio |
-| `issueNumber` | `number` | Número del issue |
+| `issueNumber` | `integer` | Número del issue, mayor que 0 |
 | `reason` | `"completed" \| "not_planned"` | Por defecto `completed` |
 
 > **Prompt:** Cierra el issue #12 de `octocat/api-pagos` porque ya está resuelto.
@@ -294,7 +294,7 @@ Verifica la conexión e informa el usuario, los scopes concedidos y faltantes, y
 
 ## Ejemplos de uso
 
-Cada flujo combina tools, y juntos cubren los 10. Se probaron en Antigravity con Gemini 3.8 Flash; el último, contra la API real por stdio:
+Cada flujo combina tools, y juntos cubren los 10. Los cinco primeros se probaron en Antigravity con Gemini 3.8 Flash, sobre GitHub real; el último, directamente contra la API de GitHub por stdio:
 
 | Pedido | Tools que usa el agente |
 |---|---|
@@ -302,7 +302,7 @@ Cada flujo combina tools, y juntos cubren los 10. Se probaron en Antigravity con
 | "Crea un repositorio llamado `demo-mcp`, abre un issue 'Agregar documentación' y muéstrame los issues abiertos." | `create_repository`, `create_issue`, `list_issues` |
 | "En `demo-mcp`, crea la rama `feat/docs`, agrega `docs/guia.md` con una guía breve y abre un pull request hacia `main`." | `create_branch`, `create_commit`, `create_pull_request` |
 | "Muéstrame los últimos commits de `demo-mcp`, cierra el issue de documentación y lista los issues cerrados." | `list_commits`, `close_issue`, `list_issues` |
-| "Crea un repositorio llamado `a b`." | Ninguna llamada a GitHub: la validación explica el error y el agente propone `a-b` |
+| "Crea un repositorio llamado `mi repo`." | Ninguna llamada a GitHub: la validación explica el error y el agente propone `mi-repo` |
 | "¿Qué issues tiene el repo `no-existe-xyz`?" | `list_issues`, que responde "El repositorio … no fue encontrado. Verifica el nombre e intenta de nuevo." |
 
 ## Arquitectura
@@ -346,17 +346,17 @@ src/
 ├── mcp-server.ts      Handlers del protocolo: listar y ejecutar tools
 ├── config.ts          Identidad del server, scopes y carga de .env
 ├── types.ts           Modelos de dominio que devuelven las operaciones
-├── tools/             Un archivo por tool, más define-tool.ts
+├── tools/             Un archivo por tool, define-tool.ts e index.ts con la lista de tools
 ├── schemas/           Schemas de Zod y tipos inferidos
 ├── github/
 │   ├── client.ts      Configuración de Octokit
 │   └── operations.ts  Operaciones de GitHub
 ├── errors/            Tipos de error y traducción a lenguaje natural
 └── utils/             Logging y reintentos
-tests/                 Tests unitarios con Octokit mockeado
+tests/                 Tests unitarios con Octokit mockeado; helpers.ts arma errores HTTP de prueba
 ```
 
-La estructura sigue la sugerida por la consigna y suma tres archivos: `mcp-server.ts` separa el protocolo del entry point para poder testearlo con un cliente en memoria, `config.ts` centraliza la configuración y `define-tool.ts` aplica a todos los tools la misma validación, el mismo manejo de errores y los mismos logs.
+La estructura sigue la sugerida por la consigna y suma cuatro archivos: `mcp-server.ts` separa el protocolo del entry point para poder testearlo con un cliente en memoria, `config.ts` centraliza la configuración, `tools/define-tool.ts` aplica a todos los tools la misma validación, el mismo manejo de errores y los mismos logs, y `tools/index.ts` reúne los tools que se registran en el server.
 
 ## Decisiones de arquitectura
 
@@ -395,12 +395,13 @@ La estructura sigue la sugerida por la consigna y suma tres archivos: `mcp-serve
 npm test
 ```
 
-115 tests con Vitest. Octokit se reemplaza con `vi.mock()` y los timers son simulados: no hay llamadas reales a GitHub y los resultados son deterministas. Los mocks simulan tanto respuestas exitosas como errores (404, 401, 403, 422, rate limit y fallos de red).
+123 tests con Vitest. Octokit se reemplaza con `vi.mock()` y los timers son simulados: no hay llamadas reales a GitHub y los resultados son deterministas. Los mocks simulan tanto respuestas exitosas como errores (404, 401, 403, 422, rate limit y fallos de red).
 
 | Archivo | Qué verifica |
 |---|---|
 | `tests/tools.test.ts` | Schemas: inputs válidos, inválidos y sus mensajes |
 | `tests/github.test.ts` | Operaciones con Octokit mockeado y casos edge: repositorio inexistente, credenciales inválidas, repo vacío |
+| `tests/client.test.ts` | Creación del cliente de Octokit y error claro si falta el token |
 | `tests/errors.test.ts` | Clasificación y traducción de errores a lenguaje natural |
 | `tests/retry.test.ts` | Backoff, límite de espera y reintentos seguros |
 | `tests/logging.test.ts` | Uso de stderr, niveles y ocultamiento del token |

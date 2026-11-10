@@ -45,9 +45,11 @@ export class GitHubAPIError extends AppError {
   }
 }
 
+type CustomMessage = string | ((responseData: unknown) => string | undefined);
+
 export interface ErrorContext {
   repository?: string;
-  messages?: Partial<Record<number, string>>;
+  messages?: Partial<Record<number, CustomMessage>>;
 }
 
 interface HttpErrorLike {
@@ -121,7 +123,8 @@ function defaultMessage(error: HttpErrorLike, repository?: string): string {
 }
 
 function translateHttpError(error: HttpErrorLike, context: ErrorContext): AppError {
-  const custom = context.messages?.[error.status];
+  const message = context.messages?.[error.status];
+  const custom = typeof message === "function" ? message(error.response?.data) : message;
 
   // Octokit informa los fallos de red como status 500 sin respuesta del servidor.
   if (error.status === 500 && !error.response) {

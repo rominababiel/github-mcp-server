@@ -15,19 +15,25 @@ function requiredText(label: string) {
   return z.string({ error: `${label} es obligatorio y debe ser texto.` }).trim();
 }
 
-const ownerSchema = requiredText("El dueño del repositorio")
-  .min(1, "El dueño del repositorio no puede estar vacío.")
-  .max(39, "El dueño del repositorio no puede superar los 39 caracteres.")
-  .regex(
-    /^[a-zA-Z0-9](?:[a-zA-Z0-9_-]*[a-zA-Z0-9])?$/,
-    "El dueño solo admite letras, números, guiones y guiones bajos, y debe empezar y terminar con letra o número.",
-  )
-  .describe("Usuario u organización dueña del repositorio. Si no se conoce, obtenerla con list_repositories o health_check.");
+function accountNameSchema(label: string) {
+  return requiredText(label)
+    .min(1, `${label} no puede estar vacío.`)
+    .max(39, `${label} no puede superar los 39 caracteres.`)
+    .regex(
+      /^[a-zA-Z0-9](?:[a-zA-Z0-9_-]*[a-zA-Z0-9])?$/,
+      `${label} solo admite letras, números, guiones y guiones bajos, y debe empezar y terminar con letra o número.`,
+    );
+}
+
+const ownerSchema = accountNameSchema("El dueño del repositorio").describe(
+  "Usuario u organización dueña del repositorio. Si no se conoce, obtenerla con list_repositories o health_check.",
+);
 
 const existingRepositoryNameSchema = requiredText("El nombre del repositorio")
   .min(1, "El nombre del repositorio no puede estar vacío.")
   .max(100, "El nombre del repositorio no puede superar los 100 caracteres.")
   .regex(/^[a-zA-Z0-9._-]+$/, "El nombre del repositorio solo admite letras, números, puntos, guiones y guiones bajos.")
+  .refine((name) => name !== "." && name !== "..", "El nombre del repositorio no puede ser . ni ..")
   .describe("Nombre de un repositorio existente, sin el dueño. Ejemplo: mi-proyecto.");
 
 export const newRepositoryNameSchema = requiredText("El nombre del repositorio")
@@ -78,7 +84,7 @@ export const createRepositorySchema = toolInput({
     .boolean({ error: "autoInit debe ser verdadero o falso." })
     .default(true)
     .describe("Crear un README inicial, necesario para poder crear ramas de inmediato."),
-  organization: ownerSchema
+  organization: accountNameSchema("El nombre de la organización")
     .optional()
     .describe("Organización donde crearlo. Omitir para crearlo en la cuenta personal."),
 });

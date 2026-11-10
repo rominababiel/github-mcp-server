@@ -60,6 +60,18 @@ describe("referencias a repositorios existentes", () => {
   it.each(["-octocat", "octocat-", "octo cat", "a".repeat(40)])("rechaza el dueño inválido %s", (owner) => {
     expect(listIssuesSchema.safeParse({ owner, repo: "demo" }).success).toBe(false);
   });
+
+  it.each([".", ".."])("rechaza %s como nombre de repositorio, que GitHub no admite", (repo) => {
+    expect(firstMessage(listIssuesSchema.safeParse({ owner: "octocat", repo }))).toBe(
+      "El nombre del repositorio no puede ser . ni ..",
+    );
+  });
+
+  it("nombra a la organización en sus propios errores", () => {
+    expect(firstMessage(createRepositorySchema.safeParse({ name: "demo", organization: "mi org" }))).toContain(
+      "El nombre de la organización",
+    );
+  });
 });
 
 describe("createIssueSchema", () => {
