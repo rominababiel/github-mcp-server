@@ -33,6 +33,17 @@ describe("toAppError", () => {
     expect(error.message).toContain("scopes");
   });
 
+  it("explica que el repositorio está archivado en lugar de culpar a los scopes", () => {
+    const error = toAppError(httpError(403, { data: { message: "Repository was archived so is read-only." } }), {
+      repository: "octocat/hello",
+    });
+
+    expect(error).toBeInstanceOf(GitHubAPIError);
+    expect(error.message).toBe(
+      "El repositorio octocat/hello está archivado y es de solo lectura. Desarchívalo en GitHub para modificarlo.",
+    );
+  });
+
   it("detecta el rate limit primario aunque responda 403 y calcula la espera", () => {
     const resetInSeconds = Math.floor(Date.now() / 1000) + 120;
     const error = toAppError(

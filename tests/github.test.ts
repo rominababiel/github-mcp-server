@@ -192,6 +192,32 @@ describe("listIssues", () => {
     expect(octokit.rest.issues.listForRepo).toHaveBeenCalledWith(expect.objectContaining({ state: "closed" }));
     expect(result[0]?.state).toBe("closed");
   });
+
+  it("pide la página siguiente si los pull requests dejan el resultado por debajo del límite", async () => {
+    const pullRequests = Array.from({ length: 100 }, (_, index) => ({
+      ...issueData,
+      number: index + 100,
+      pull_request: { url: "x" },
+    }));
+    octokit.rest.issues.listForRepo
+      .mockResolvedValueOnce({ data: pullRequests })
+      .mockResolvedValueOnce({ data: [{ ...issueData, number: 1 }, { ...issueData, number: 2 }] });
+
+    const result = await listIssues({ ...reference, state: "open", limit: 2 });
+
+    expect(octokit.rest.issues.listForRepo).toHaveBeenCalledTimes(2);
+    expect(octokit.rest.issues.listForRepo).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2 }));
+    expect(result.map((issue) => issue.number)).toEqual([1, 2]);
+  });
+
+  it("no pide otra página cuando GitHub ya devolvió la última", async () => {
+    octokit.rest.issues.listForRepo.mockResolvedValue({ data: [{ ...issueData, pull_request: { url: "x" } }] });
+
+    const result = await listIssues({ ...reference, state: "open", limit: 30 });
+
+    expect(octokit.rest.issues.listForRepo).toHaveBeenCalledTimes(1);
+    expect(result).toEqual([]);
+  });
 });
 
 describe("createCommit", () => {
@@ -347,6 +373,17 @@ describe("closeIssue", () => {
       state_reason: "completed",
     });
     expect(result.state).toBe("closed");
+    expect(result.alreadyClosed).toBe(false);
+  });
+
+  it("no modifica un issue que ya estaba cerrado ni cambia su motivo", async () => {
+    octokit.rest.issues.get.mockResolvedValue({ data: { ...issueData, state: "closed" } });
+
+    const result = await closeIssue({ ...input, reason: "not_planned" });
+
+    expect(octokit.rest.issues.update).not.toHaveBeenCalled();
+    expect(result.state).toBe("closed");
+    expect(result.alreadyClosed).toBe(true);
   });
 
   it("no cierra un pull request por error", async () => {

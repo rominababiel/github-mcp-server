@@ -14,6 +14,7 @@ import type {
 } from "../schemas/index.js";
 import type {
   BranchResult,
+  CloseIssueResult,
   CommitResult,
   CommitSummary,
   HealthReport,
@@ -25,6 +26,7 @@ import { withRetry } from "../utils/retry.js";
 import { getGitHubClient } from "./client.js";
 
 const GITHUB_MAX_PAGE_SIZE = 100;
+const MAX_ISSUE_PAGES = 5;
 
 interface CallOptions extends ErrorContext {
   idempotent?: boolean;
@@ -162,15 +164,21 @@ export async function createIssue(input: CreateIssueInput): Promise<IssueSummary
 
 export async function listIssues(input: ListIssuesInput): Promise<IssueSummary[]> {
   const { owner, repo, state, limit } = input;
-  const { data } = await callGitHub(
-    (client) => client.rest.issues.listForRepo({ owner, repo, state, per_page: GITHUB_MAX_PAGE_SIZE }),
-    { idempotent: true, repository: `${owner}/${repo}` },
-  );
-  // La API de GitHub devuelve los pull requests mezclados con los issues.
-  return data
-    .filter((issue) => !issue.pull_request)
-    .slice(0, limit)
-    .map(toIssueSummary);
+  const issues: IssueSummary[] = [];
+
+  // La API de GitHub devuelve los pull requests mezclados con los issues: si ocupan la página, se pide la siguiente.
+  // El tope de páginas evita recorrer repositorios enteros con miles de pull requests.
+  for (let page = 1; page <= MAX_ISSUE_PAGES && issues.length < limit; page++) {
+    const { data } = await callGitHub(
+      (client) => client.rest.issues.listForRepo({ owner, repo, state, per_page: GITHUB_MAX_PAGE_SIZE, page }),
+      { idempotent: true, repository: `${owner}/${repo}` },
+    );
+    issues.push(...data.filter((issue) => !issue.pull_request).map(toIssueSummary));
+    if (data.length < GITHUB_MAX_PAGE_SIZE) {
+      break;
+    }
+  }
+  return issues.slice(0, limit);
 }
 
 export async function createCommit(input: CreateCommitInput): Promise<CommitResult> {
@@ -271,7 +279,7 @@ export async function listCommits(input: ListCommitsInput): Promise<CommitSummar
   }));
 }
 
-export async function closeIssue(input: CloseIssueInput): Promise<IssueSummary> {
+export async function closeIssue(input: CloseIssueInput): Promise<CloseIssueResult> {
   const { owner, repo, issueNumber, reason } = input;
   const notFound = {
     404: `No se encontró el issue #${issueNumber} en ${owner}/${repo}. Verifica el repositorio y el número e intenta de nuevo.`,
@@ -285,13 +293,17 @@ export async function closeIssue(input: CloseIssueInput): Promise<IssueSummary> 
   if (current.pull_request) {
     throw new ValidationError(`#${issueNumber} es un pull request, no un issue. Este tool solo cierra issues.`);
   }
+  // Volver a cerrarlo reemplazaría el motivo con el que se cerró originalmente.
+  if (current.state === "closed") {
+    return { ...toIssueSummary(current), alreadyClosed: true };
+  }
 
   const { data } = await callGitHub(
     (client) =>
       client.rest.issues.update({ owner, repo, issue_number: issueNumber, state: "closed", state_reason: reason }),
     { messages: notFound },
   );
-  return toIssueSummary(data);
+  return { ...toIssueSummary(data), alreadyClosed: false };
 }
 
 export async function checkHealth(): Promise<HealthReport> {

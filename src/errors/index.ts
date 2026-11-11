@@ -103,6 +103,11 @@ function apiValidationDetail(data: unknown): string {
   return details.filter(Boolean).join("; ") || message || "datos no válidos";
 }
 
+function isArchivedRepository(data: unknown): boolean {
+  const { message } = (data ?? {}) as { message?: unknown };
+  return typeof message === "string" && /archived/i.test(message);
+}
+
 function defaultMessage(error: HttpErrorLike, repository?: string): string {
   switch (error.status) {
     case 404:
@@ -146,6 +151,15 @@ function translateHttpError(error: HttpErrorLike, context: ErrorContext): AppErr
   if (error.status === 401) {
     return new AuthenticationError(
       "GitHub rechazó las credenciales. Verifica que GITHUB_TOKEN sea válido y no haya vencido.",
+      { cause: error },
+    );
+  }
+
+  if (error.status === 403 && isArchivedRepository(error.response?.data)) {
+    const repository = context.repository ? `El repositorio ${context.repository}` : "El repositorio";
+    return new GitHubAPIError(
+      `${repository} está archivado y es de solo lectura. Desarchívalo en GitHub para modificarlo.`,
+      { status: error.status },
       { cause: error },
     );
   }

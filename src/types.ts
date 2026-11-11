@@ -17,6 +17,10 @@ export interface IssueSummary {
   createdAt: string;
 }
 
+export interface CloseIssueResult extends IssueSummary {
+  alreadyClosed: boolean;
+}
+
 export interface CommitResult {
   action: "created" | "updated";
   path: string;

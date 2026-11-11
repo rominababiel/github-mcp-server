@@ -31,7 +31,7 @@ Un server MCP que expone operaciones de GitHub como tools. El LLM lee la descrip
 
 ### Alcance
 
-- **Incluye:** 10 tools (los 5 obligatorios, 4 avanzados y `health_check`), validación de inputs con Zod, errores clasificados y traducidos, reintentos ante rate limit, logs sin datos sensibles, repositorios en organizaciones y 123 tests.
+- **Incluye:** 10 tools (los 5 obligatorios, 4 avanzados y `health_check`), validación de inputs con Zod, errores clasificados y traducidos, reintentos ante rate limit, logs sin datos sensibles, repositorios en organizaciones y 127 tests.
 - **No incluye:** borrado de repositorios, labels, colaboradores, comentarios en issues, caché de resultados ni varias cuentas de GitHub a la vez. Cada commit agrega o reemplaza un único archivo de texto.
 
 ## Stack
@@ -275,7 +275,7 @@ Lista los commits recientes de un repositorio o rama.
 
 #### `close_issue`
 
-Cierra un issue. Rechaza el pedido si el número corresponde a un pull request.
+Cierra un issue. Rechaza el pedido si el número corresponde a un pull request, y si el issue ya estaba cerrado no lo modifica: responde `alreadyClosed: true` y conserva el motivo original.
 
 | Parámetro | Tipo | Detalle |
 |---|---|---|
@@ -379,7 +379,7 @@ La estructura sigue la sugerida por la consigna y suma cuatro archivos: `mcp-ser
 |---|---|---|
 | `ValidationError` | Input inválido o con parámetros que el tool no admite, antes de llamar a GitHub | `Parámetros inválidos. name: El nombre del repositorio solo admite letras, números y guiones.` |
 | `AuthenticationError` | Token ausente o inválido (401), falta de permisos (403) | `GitHub rechazó las credenciales. Verifica que GITHUB_TOKEN sea válido y no haya vencido.` |
-| `GitHubAPIError` | 404, 409, 422, 5xx y rate limit | `El repositorio octocat/demo no fue encontrado. Verifica el nombre e intenta de nuevo.` |
+| `GitHubAPIError` | 404, 409, 422, 5xx, rate limit y repositorio archivado | `El repositorio octocat/demo no fue encontrado. Verifica el nombre e intenta de nuevo.` |
 | `NetworkError` | No se pudo conectar con GitHub | `No se pudo conectar con GitHub. Verifica tu conexión a internet e intenta de nuevo.` |
 | `UnexpectedError` | Cualquier otro fallo | Mensaje genérico; el detalle queda en los logs |
 
@@ -395,7 +395,7 @@ La estructura sigue la sugerida por la consigna y suma cuatro archivos: `mcp-ser
 npm test
 ```
 
-123 tests con Vitest. Octokit se reemplaza con `vi.mock()` y los timers son simulados: no hay llamadas reales a GitHub y los resultados son deterministas. Los mocks simulan tanto respuestas exitosas como errores (404, 401, 403, 422, rate limit y fallos de red).
+127 tests con Vitest. Octokit se reemplaza con `vi.mock()` y los timers son simulados: no hay llamadas reales a GitHub y los resultados son deterministas. Los mocks simulan tanto respuestas exitosas como errores (404, 401, 403, 422, rate limit y fallos de red).
 
 | Archivo | Qué verifica |
 |---|---|
