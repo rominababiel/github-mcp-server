@@ -82,7 +82,9 @@ Estos son los prompts más importantes que usé durante el desarrollo.
 
 ### Etapa 8: Presentación y defensa
 
-- Pendiente: slides, grabación de la demo y preparación de preguntas.
+- Armé las slides con Claude Design y le pedí a Claude Code revisarlas contra el código y la consigna. Encontró el número de tests desactualizado y que faltaban una slide de decisiones técnicas y mostrar `npm test` en la demo; también, que la exportación a Google Slides rompía los títulos, así que la entregué en PDF.
+- Saqué capturas de cada paso de la demo en Antigravity como plan B por si falla en vivo, y recorté la que mostraba repositorios privados.
+- Al revisar las capturas vimos que, ante "Crea un repositorio llamado mi repo", el agente corregía el nombre y creaba `mi-repo` sin preguntar. Para el caso de error le pido que no cambie el nombre y que explique el error.
 
 ## En qué situaciones fue más efectiva
 
