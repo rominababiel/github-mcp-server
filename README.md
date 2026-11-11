@@ -8,6 +8,8 @@ Servidor [Model Context Protocol](https://modelcontextprotocol.io) en Node.js y 
 
 A partir de ese pedido, el agente elige los tools `create_branch`, `create_commit` y `create_pull_request`, los ejecuta en orden y devuelve el enlace al pull request.
 
+**Presentación:** las slides de la defensa están en [docs/presentacion.pdf](docs/presentacion.pdf).
+
 ## Objetivo del proyecto
 
 **GitHub MCP Server** es el MVP que AutomateHub, una startup de herramientas de automatización para equipos de desarrollo, construye para explorar el ecosistema de AI Agents y MCP.
@@ -354,6 +356,7 @@ src/
 ├── errors/            Tipos de error y traducción a lenguaje natural
 └── utils/             Logging y reintentos
 tests/                 Tests unitarios con Octokit mockeado; helpers.ts arma errores HTTP de prueba
+docs/                  Uso de IA (AI_USAGE.md) y slides de la presentación (presentacion.pdf)
 ```
 
 La estructura sigue la sugerida por la consigna y suma cuatro archivos: `mcp-server.ts` separa el protocolo del entry point para poder testearlo con un cliente en memoria, `config.ts` centraliza la configuración, `tools/define-tool.ts` aplica a todos los tools la misma validación, el mismo manejo de errores y los mismos logs, y `tools/index.ts` reúne los tools que se registran en el server.
